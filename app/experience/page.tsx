@@ -26,7 +26,7 @@ export default function ExperiencePage() {
         <div className="absolute left-2 sm:left-3 top-0 bottom-0 w-px bg-gradient-to-b from-blue-400 via-violet-400 to-transparent" />
 
         {experience.map((job) => {
-          const a = accentMap[job.accentColor];
+          const a = accentMap[job.accentColor as keyof typeof accentMap];
           return (
             <div key={job.id} className="relative mb-10 last:mb-0">
               {/* Dot */}
