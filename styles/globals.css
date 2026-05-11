@@ -1,5 +1,5 @@
 /* ============================================================
-   Global styles — Tailwind + custom CSS variables
+   Global styles — Tailwind + custom CSS variables + motion
    ============================================================ */
 
 @tailwind base;
@@ -15,33 +15,99 @@
   --muted: #64748b;
 }
 
-html {
-  scroll-behavior: smooth;
+html { scroll-behavior: smooth; }
+body { background: var(--bg); color: var(--text); }
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.08); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.15); }
+
+::selection { background: rgba(79, 142, 247, 0.3); color: #fff; }
+
+/* ── ANIMATIONS ─────────────────────────────────────────── */
+
+.reveal {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.7s ease-out, transform 0.7s ease-out;
+  will-change: opacity, transform;
+}
+.reveal.in-view {
+  opacity: 1;
+  transform: translateY(0);
 }
 
-body {
-  background: var(--bg);
-  color: var(--text);
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+.typing-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 0.9em;
+  background: currentColor;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  animation: blink 1s infinite;
 }
 
-/* Subtle scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
 }
-::-webkit-scrollbar-track {
-  background: var(--bg);
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marquee 25s linear infinite;
 }
-::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 4px;
+.marquee-wrap:hover .marquee-track { animation-play-state: paused; }
+
+@keyframes dotGlowCyan {
+  0%, 100% { box-shadow: 0 0 6px rgba(34,211,238,0.4); }
+  50% { box-shadow: 0 0 18px rgba(34,211,238,0.8); }
 }
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.15);
+@keyframes dotGlowBlue {
+  0%, 100% { box-shadow: 0 0 6px rgba(59,130,246,0.4); }
+  50% { box-shadow: 0 0 18px rgba(59,130,246,0.8); }
+}
+@keyframes dotGlowViolet {
+  0%, 100% { box-shadow: 0 0 6px rgba(139,92,246,0.4); }
+  50% { box-shadow: 0 0 18px rgba(139,92,246,0.8); }
+}
+.glow-cyan { animation: dotGlowCyan 3s ease-in-out infinite; }
+.glow-blue { animation: dotGlowBlue 3s ease-in-out infinite 1s; }
+.glow-violet { animation: dotGlowViolet 3s ease-in-out infinite 2s; }
+
+@keyframes roadmapGlow {
+  0%, 100% { border-color: rgba(167,139,250,0.6); box-shadow: 0 0 6px rgba(167,139,250,0.3); }
+  50% { border-color: rgba(34,211,238,0.9); box-shadow: 0 0 16px rgba(34,211,238,0.6); }
+}
+.roadmap-glow { animation: roadmapGlow 2.5s ease-in-out infinite; }
+
+.tilt-card {
+  transform-style: preserve-3d;
+  transition: transform 0.2s ease-out, border-color 0.3s, box-shadow 0.3s;
+  will-change: transform;
 }
 
-/* Selection */
-::selection {
-  background: rgba(79, 142, 247, 0.3);
-  color: #fff;
+@keyframes planeFly {
+  0% { transform: translate(0, 0); opacity: 1; }
+  100% { transform: translate(80px, -80px); opacity: 0; }
+}
+.plane-fly { animation: planeFly 0.7s ease-out forwards; }
+
+@keyframes screenLoad {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+.screen-fade-in { animation: screenLoad 0.4s ease-out; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .reveal { opacity: 1; transform: none; }
 }
