@@ -22,7 +22,7 @@ export const AI_CONCEPTS: AiConcept[] = [
     simple: "A large language model (LLM) is a program that has read a huge amount of text and learned one skill extremely well: guessing the next word.",
     analogy: "Like your phone's autocomplete, if it had read a library. Ask a question and it keeps guessing the most fitting next word until an answer appears.",
     more: "It does not look facts up. It predicts. That is why it can write fluently and still be wrong, and why good systems give it the facts first. Temperature controls how adventurous the guesses are.",
-    inWork: { text: "NEYU runs 22 features on Google Gemini; HARU and this site can switch between Gemini and Claude.", href: "/projects/neyu", src: "GitHub: Neyu-AI, Haru" },
+    inWork: { text: "NEYU runs 22 features on Google Gemini; HARU can switch between Gemini and Claude.", href: "/projects/neyu", src: "GitHub: Neyu-AI, Haru" },
   },
   {
     id: "tokens", n: "02", title: "Tokens", visual: "tokens",

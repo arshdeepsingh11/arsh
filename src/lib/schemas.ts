@@ -9,6 +9,8 @@ export const chatSchema = z.object({
   agent: z.enum(AGENT_IDS),
   messages: z.array(message).min(1).max(20),
   intent: z.string().max(80).optional(),
+  /** Let the agent whose area the question is in take over (one shared conversation). */
+  route: z.boolean().optional().default(true),
 });
 export type ChatBody = z.infer<typeof chatSchema>;
 

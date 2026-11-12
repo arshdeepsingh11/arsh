@@ -4,6 +4,7 @@ import { answer } from "@/lib/agents/conversation";
 import { runNetwork, type NetworkEvent } from "@/lib/agents/orchestrator";
 import { retrieve, validate } from "@/lib/agents/retrieval";
 import { scoreProjects } from "@/lib/agents/scoring";
+import { routeAgent } from "@/lib/agents/router";
 import type { AiMode, ChatProvider } from "@/lib/ai";
 
 const demo: AiMode = { mode: "demo", provider: null, reason: "test" };
@@ -124,4 +125,24 @@ test("retrieval understands everyday AI questions", () => {
   assert.ok(retrieve("what is rag", "oracle", 3).some((p) => p.id === "ai-rag"));
   assert.ok(retrieve("what are embeddings", "oracle", 3).some((p) => p.id === "ai-embeddings"));
   assert.ok(retrieve("what is he working on now", "aria", 4).some((p) => p.id === "focus"));
+});
+
+test("the router brings in the agent whose area the question is in", () => {
+  assert.equal(routeAgent("What did he study?", "aria"), "atlas");
+  assert.equal(routeAgent("Which repos use Supabase?", "atlas"), "nex");
+  assert.equal(routeAgent("What is RAG, in simple words?", "nex"), "oracle");
+  assert.equal(routeAgent("Which projects have 3D interfaces?", "aria"), "pixel");
+  assert.equal(routeAgent("I need an app for my clinic", "atlas"), "nova");
+  assert.equal(routeAgent("Give me the 30-second version of Arshdeep", "nex"), "aria");
+  assert.equal(routeAgent("Tell me more", "atlas"), "atlas", "follow-ups stay with the current agent");
+  assert.equal(routeAgent("How does Neyu keep AI answers safe?", "nex"), "nex", "a passing mention of AI does not take the question away");
+  assert.equal(routeAgent("ATLAS, what about his certificates? NEX can wait", "aria"), "atlas", "naming an agent brings it in");
+});
+
+test("one shared conversation: the right agent answers and the hand-off is reported", async () => {
+  const r = await answer("aria", [{ role: "user", content: "What did he study?" }], { mode: "demo", provider: null, reason: "test" }, { route: true });
+  assert.equal(r.agent, "atlas");
+  assert.deepEqual(r.handoff, { from: "aria", to: "atlas" });
+  const same = await answer("aria", [{ role: "user", content: "What did he study?" }], { mode: "demo", provider: null, reason: "test" });
+  assert.equal(same.agent, "aria", "routing is off unless asked for");
 });

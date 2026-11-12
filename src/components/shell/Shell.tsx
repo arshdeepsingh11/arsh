@@ -48,7 +48,7 @@ export function Shell({ children }: { children: ReactNode }) {
 
   const s = app.status;
   const modeLabel = s.mode === "live" ? "Agents: live model" : s.mode === "demo" ? "Agents: demo mode" : "Agents: connecting";
-  const modeTitle = s.mode === "live" ? `${s.provider} · ${s.model}` : s.mode === "demo" ? s.reason : "Checking the agent service";
+  const modeTitle = s.mode === "live" ? "Agents answer with a live AI model, grounded in the verified record" : s.mode === "demo" ? s.reason : "Checking the agent service";
 
   return (
     <>
@@ -79,7 +79,7 @@ export function Shell({ children }: { children: ReactNode }) {
 
       {app.drawer && (
         <div className="overlay" onClick={(e) => { if (e.target === e.currentTarget) app.closeAgent(); }}>
-          <AgentConsole key={app.drawer} id={app.drawer} layout="drawer" onSwitch={(x) => app.openAgent(x)} />
+          <AgentConsole key={app.drawer} id={app.drawer} layout="drawer" />
         </div>
       )}
       {palette && <CommandPalette onClose={() => setPalette(false)} />}

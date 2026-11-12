@@ -23,6 +23,8 @@ export type ChatRequest = {
   maxTokens?: number;
   /** Use the faster/cheaper model where the provider has one. */
   fast?: boolean;
+  /** Use exactly this model, with no fallbacks (health checks). Providers without a model chain ignore it. */
+  only?: string;
   signal?: AbortSignal;
 };
 
@@ -33,6 +35,8 @@ export interface ChatProvider {
   readonly id: "anthropic" | "openai" | "gemini";
   readonly label: string;
   readonly model: string;
+  /** Every model this provider may use, in the order it tries them. */
+  readonly models?: string[];
   chat(req: ChatRequest): Promise<ChatResult>;
 }
 

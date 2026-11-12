@@ -6,8 +6,9 @@ import type { AgentId } from "@/lib/content/agents";
 import { stopSpeaking } from "@/lib/voice";
 
 export type ReplyMeta = Omit<AgentReply, "text" | "agent">;
-export type Turn = { role: "user" | "assistant"; content: string; meta?: ReplyMeta };
-export type AiStatus = { mode: "checking" } | { mode: "live"; provider: string; model: string } | { mode: "demo"; reason: string };
+/** One shared conversation. `agent` is who said an assistant line; `note` turns are hand-off lines shown in the chat and never sent to the model. */
+export type Turn = { role: "user" | "assistant" | "note"; content: string; agent?: AgentId; meta?: ReplyMeta };
+export type AiStatus = { mode: "checking" } | { mode: "live" } | { mode: "demo"; reason: string };
 
 type Ctx = {
   reduced: boolean; setReduced: (v: boolean) => void;
@@ -18,7 +19,7 @@ type Ctx = {
   portraits: Partial<Record<AgentId, string>>;
   drawer: AgentId | null; openAgent: (id: AgentId, question?: string) => void; closeAgent: () => void;
   takePending: (id: AgentId) => string | null;
-  histories: Partial<Record<AgentId, Turn[]>>; setHistory: (id: AgentId, turns: Turn[]) => void; clearHistory: (id: AgentId) => void;
+  thread: Turn[]; setThread: (turns: Turn[]) => void; clearThread: () => void;
   intent: string | null; setIntent: (v: string | null) => void;
 };
 
@@ -54,7 +55,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [portraits, setPortraits] = useState<Partial<Record<AgentId, string>>>({});
   const [drawer, setDrawer] = useState<AgentId | null>(null);
   const pending = useRef<{ id: AgentId; q: string } | null>(null);
-  const [histories, setHistories] = useState<Partial<Record<AgentId, Turn[]>>>({});
+  const [thread, setThread] = useState<Turn[]>([]);
   const [intent, setIntent] = useState<string | null>(null);
   const audio = useRef<AudioContext | null>(null);
 
@@ -103,12 +104,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     pending.current = null;
     return p.q;
   }, []);
-  const setHistory = useCallback((id: AgentId, turns: Turn[]) => setHistories((h) => ({ ...h, [id]: turns })), []);
-  const clearHistory = useCallback((id: AgentId) => setHistories((h) => ({ ...h, [id]: [] })), []);
+  const clearThread = useCallback(() => setThread([]), []);
 
   const value = useMemo<Ctx>(
-    () => ({ reduced, setReduced, sound, setSound, voice, setVoice, blip, status, portraits, drawer, openAgent, closeAgent, takePending, histories, setHistory, clearHistory, intent, setIntent }),
-    [reduced, setReduced, sound, setSound, voice, blip, status, portraits, drawer, openAgent, closeAgent, takePending, histories, setHistory, clearHistory, intent],
+    () => ({ reduced, setReduced, sound, setSound, voice, setVoice, blip, status, portraits, drawer, openAgent, closeAgent, takePending, thread, setThread, clearThread, intent, setIntent }),
+    [reduced, setReduced, sound, setSound, voice, blip, status, portraits, drawer, openAgent, closeAgent, takePending, thread, clearThread, intent],
   );
   return <AppCtx.Provider value={value}>{children}</AppCtx.Provider>;
 }

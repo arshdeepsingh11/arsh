@@ -9,8 +9,8 @@
 <a href="https://www.linkedin.com/in/arshdeep-singh-software/"><img alt="LinkedIn" src="https://img.shields.io/badge/linkedin-arshdeep--singh-3f6fa8?style=for-the-badge&logo=linkedin&logoColor=white"></a>
 <img alt="Next.js 16" src="https://img.shields.io/badge/Next.js-16-111?style=for-the-badge&logo=nextdotjs">
 <img alt="TypeScript strict" src="https://img.shields.io/badge/TypeScript-strict-3178c6?style=for-the-badge&logo=typescript&logoColor=white">
-<img alt="Gemini" src="https://img.shields.io/badge/AI-Gemini%20·%20Claude%20·%20OpenAI-8b6cf0?style=for-the-badge&logo=googlegemini&logoColor=white">
-<img alt="Tests" src="https://img.shields.io/badge/tests-29%20passing-16b88a?style=for-the-badge">
+<img alt="Multi-agent AI" src="https://img.shields.io/badge/AI-multi--agent-8b6cf0?style=for-the-badge">
+<img alt="Tests" src="https://img.shields.io/badge/tests-34%20passing-16b88a?style=for-the-badge">
 
 ### I build what you can imagine.
 
@@ -57,7 +57,7 @@ ARSH/OS is my portfolio, built as a small operating system for my work instead o
 
 | | |
 |---|---|
-| 🛰️ **Six AI agents** | ARIA (guide), NEX (code), PIXEL (design), ATLAS (career), ORACLE (AI), NOVA (projects). Each is an animated 3D character with nine states, and a real server-side model call grounded in verified facts. |
+| 🛰️ **Six AI agents** | ARIA (guide), NEX (code), PIXEL (design), ATLAS (career), ORACLE (AI), NOVA (projects). Each is an animated 3D character with nine states, and a real server-side model call grounded in verified facts. It is **one conversation**: ask about career and ATLAS steps in, ask about code and NEX takes over. |
 | 🕸️ **Intelligence Network** | Give the agents a task. They work in separate calls, ORACLE verifies every claim, and ARIA presents only what survived. It is streamed live, stage by stage. |
 | 🪐 **Project Multiverse** | 15 repositories as worlds. Live sites open **inside the page** in a working browser window, and 12 projects run as **interactive demos** rebuilt from their real code. Each has an architecture walk, code and facts. |
 | 🧠 **AI Explained** | 13 ideas (LLMs, tokens, context, embeddings, RAG, agents, guardrails, evaluation, multi-agent, fine-tuning, multimodal, vector DBs, cost) explained simply, each with an interactive visual. Some run this site's real retrieval, guard and checker in your browser. |
@@ -72,8 +72,9 @@ ARSH/OS is my portfolio, built as a small operating system for my work instead o
 flowchart LR
   Q([Visitor question]) --> G{Scope guard<br/>plain code}
   G -- off-topic / injection / personal --> R1[Polite redirect<br/>no model call]
-  G -- on topic --> S[Retrieve facts<br/>BM25 + query expansion]
-  S --> M[Model call<br/>Gemini · Claude · OpenAI]
+  G -- on topic --> W{Router<br/>whose area is it?}
+  W -- ATLAS / NEX / PIXEL / ORACLE / NOVA / ARIA --> S[Retrieve facts<br/>BM25 + query expansion]
+  S --> M[Model call<br/>server-side]
   M <--> T[(Tools<br/>lookup · get_project · rank · open_view)]
   M --> V{Validate figures<br/>against the record}
   V --> A([Answer + sources + flags])
@@ -111,7 +112,7 @@ sequenceDiagram
 # 1. Install
 npm install
 
-# 2. Configure: .env.local is included with Gemini set up.
+# 2. Configure: .env.local is included with the AI key set up.
 #    To start from scratch instead: cp .env.example .env.local
 
 # 3. Start
@@ -120,35 +121,39 @@ npm run dev            # → http://localhost:3000
 
 **Check that the agents are live:** open **http://localhost:3000/api/agents/status?probe=1**.
 
-- `"ok": true` → Gemini answered. The status bar shows **Agents: live model**.
-- `"ok": false` → the response includes Google's own error message (for example an invalid key or an unavailable model).
+- `"ok": true` → a model answered. The status bar shows **Agents: live model**.
+- `"ok": false` → the response includes the AI service's own error message (for example an invalid key or every model busy).
+- **http://localhost:3000/api/agents/status?probe=all** tests every model in the backup chain one by one, so you can see which are busy or unavailable to your key.
+
+On a deployed site these details are hidden from visitors. Set `AI_DEBUG_TOKEN` and add `&token=<it>` to see them.
 
 | Command | What it does |
 |---|---|
 | `npm run dev` | Development server |
 | `npm run build && npm start` | Production build and server |
 | `npm run typecheck` | Strict TypeScript |
-| `npm test` | 29 tests: retrieval, guard, validation, orchestration, all three providers' wire formats, every API route |
+| `npm test` | 34 tests: agent routing, retrieval, guard, validation, orchestration, all three providers' wire formats, every API route |
 | `npm run certificates` | Regenerate certificate presentation copies from originals (see below) |
 
 ### Environment
 
 | Variable | Needed | Purpose |
 |---|---|---|
-| `AI_PROVIDER` | ✓ for live agents | `gemini`, `anthropic`, `openai` or `demo` |
-| `GEMINI_API_KEY` / `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` | ✓ for live agents | Only the one you use. Server-only; never sent to the browser. |
-| `AI_MODEL`, `AI_MODEL_FAST` | optional | Override models. Gemini default: `gemini-3.8-flash`. |
-| `AI_FALLBACK_MODELS` | optional | Gemini models to try when the main one is busy or unavailable. Default `gemini-3.6-flash,gemini-2.5-flash`. |
+| `AI_PROVIDER` | ✓ for live agents | Which AI service answers, or `demo`. The choices are listed in `.env.example`. |
+| The matching `*_API_KEY` | ✓ for live agents | Only the one you use. Server-only; never sent to the browser. |
+| `AI_MODEL`, `AI_MODEL_FAST` | optional | Override the main and the light model. |
+| `AI_FALLBACK_MODELS` | optional | Extra models to try first when the main one is busy. A built-in backup chain always follows. |
+| `AI_DEBUG_TOKEN` | optional | Shows model-level health details on a deployed site (`/api/agents/status?probe=all&token=…`). |
 | `CERT_SIGNING_SECRET` | recommended | Signs certificate image links. If missing, a key is derived from your AI key so the Vault still works. |
 | `GITHUB_TOKEN` | optional | Raises the GitHub API limit from 60 to 5,000 requests/hour. |
 | `RESEND_API_KEY`, `CONTACT_TO`, `CONTACT_FROM` | optional | Real email from the Collaborate page. |
 
-> 🔑 **Keep `.env.local` private.** It is git-ignored. Because the Gemini key in it was shared in a chat, create a new key in Google AI Studio and replace it when you can.
+> 🔑 **Keep `.env.local` private.** It is git-ignored. Because the key in it was shared in a chat, create a new key and replace it when you can.
 
 ### Deploy to Vercel
 
 1. Push the folder to GitHub and import it at [vercel.com/new](https://vercel.com/new). The framework preset is Next.js, with nothing else to change.
-2. In **Settings → Environment Variables**, add `AI_PROVIDER`, `GEMINI_API_KEY` and `CERT_SIGNING_SECRET` (copy them from `.env.local`). `GITHUB_TOKEN` is recommended.
+2. In **Settings → Environment Variables**, add `AI_PROVIDER`, its API key and `CERT_SIGNING_SECRET` (copy them from `.env.local`). `GITHUB_TOKEN` is recommended.
 3. Deploy, then open `/api/agents/status?probe=1` on your domain to confirm the agents are live.
 
 The Intelligence Network streams for up to 120 s. On the Hobby plan, set `maxDuration` to 60 in `src/app/api/agents/network/route.ts`.
@@ -161,7 +166,8 @@ The Intelligence Network streams for up to 120 s. On the Hobby plan, set `maxDur
 - **Briefed agents.** Each agent has a written job, shared limits, the site map and only the facts it needs.
 - **Retrieval first.** Answers come from verified passages, never from the model's memory.
 - **Validation after.** Any figure not found in the record is flagged on screen.
-- **Fallbacks.** If a Gemini model is over quota or busy, the next model answers. If all fail, a clearly labelled retrieval answer appears.
+- **The right agent answers.** One shared conversation: a router in plain code sends each question to the agent whose area it is in, and that agent takes over on screen.
+- **Fallbacks.** Seven models stand in line. A busy one is skipped for a minute so the next visitor goes straight to one that works. If all fail, a clearly labelled retrieval answer appears.
 - **No pretending.** Demo mode, fallbacks and guard answers are all labelled. The Network stops rather than invent a failed step.
 
 ## 🪟 Live windows
@@ -178,7 +184,7 @@ Originals never enter the repository. Put scans in `certificates-originals/` (gi
 src/app/                 routes · api/agents (status, chat, network) · api/embed · api/contact · api/certificates · api/github · ai/
 src/lib/content/         verified content: index.ts (record, projects), extra.ts (capabilities, FAQ, live sites), ai.ts (AI curriculum), agents.ts
 src/lib/agents/          knowledge · retrieval · guard · prompts · tools · conversation · orchestrator
-src/lib/ai/              provider abstraction: gemini.ts (model fallback, thinking config) · anthropic.ts · openai.ts
+src/lib/ai/              provider abstraction: one adapter per AI service, with a model backup chain
 src/lib/characters/      six procedural 3D characters, nine states, one WebGL context
 src/components/          shell · agents · views · demos (12 + live window) · ai (13 interactive visuals)
 tests/                   node:test suites

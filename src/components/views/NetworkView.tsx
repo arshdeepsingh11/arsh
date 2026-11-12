@@ -24,7 +24,7 @@ export function NetworkView() {
   const [include, setInclude] = useState<("pixel" | "nova")[]>([]);
   const [running, setRunning] = useState(false);
   const [cards, setCards] = useState<Card[]>([]);
-  const [plan, setPlan] = useState<{ mode: "live" | "demo"; provider?: string } | null>(null);
+  const [plan, setPlan] = useState<{ mode: "live" | "demo" } | null>(null);
   const [result, setResult] = useState<Result | null>(null);
   const [error, setError] = useState<string | null>(null);
   const abort = useRef<AbortController | null>(null);
@@ -47,7 +47,7 @@ export function NetworkView() {
       if (res.status === 429) throw new Error("The network allows a few runs per minute. Please wait a moment and try again.");
       if (!res.ok) throw new Error((await res.json().catch(() => null))?.message ?? "The run could not start.");
       await readNdjson<NetworkEvent | { type: "fatal"; message: string }>(res, (ev) => {
-        if (ev.type === "plan") setPlan({ mode: ev.mode, provider: ev.provider });
+        if (ev.type === "plan") setPlan({ mode: ev.mode });
         if (ev.type === "step-start") { setCards((c) => [...c, { stage: ev.stage, status: "active" }]); app.blip(440 + ev.index * 50); }
         if (ev.type === "step-done") setCards((c) => c.map((x, i) => (i === ev.index ? { ...x, status: "done", step: ev.step } : x)));
         if (ev.type === "step-error") { setCards((c) => c.map((x, i) => (i === ev.index ? { ...x, status: "error", error: ev.message } : x))); setError("The run stopped because an agent's model call failed. No result is shown rather than a made-up one."); }
@@ -68,7 +68,7 @@ export function NetworkView() {
         <h1>The Intelligence Network</h1>
         <p className="lede">Give the agents a task. Each one does its own part in its own call, ORACLE checks the claims, and ARIA presents only what survived.</p>
         <p className="note">
-          {app.status.mode === "live" ? <><b>Live model.</b> Every stage below is a separate server-side call to {app.status.provider}.</>
+          {app.status.mode === "live" ? <><b>Live model.</b> Every stage below is a separate server-side AI call.</>
             : app.status.mode === "demo" ? <><b>Demo mode.</b> No language model is configured, so the same stages run as deterministic retrieval and scoring functions on the server. Nothing is generated.</>
             : "Checking the agent service…"}
         </p>
@@ -125,7 +125,7 @@ export function NetworkView() {
           <header>
             <Avatar id="aria" />
             <div>
-              <p className="mono">{result.mode === "live" ? `Result · ${result.calls} separate live model calls${plan?.provider ? ` · ${plan.provider}` : ""}` : `Result · demo mode · ${result.steps.length} deterministic stages, no language model`}</p>
+              <p className="mono">{result.mode === "live" ? `Result · ${result.calls} separate live model calls` : `Result · demo mode · ${result.steps.length} deterministic stages, no language model`}</p>
               <h2>ARIA&apos;s answer</h2>
             </div>
           </header>

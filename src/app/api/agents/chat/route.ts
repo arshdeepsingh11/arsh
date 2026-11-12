@@ -18,10 +18,10 @@ export async function POST(req: Request) {
   }
   const parsed = chatSchema.safeParse(json);
   if (!parsed.success) return Response.json({ error: "bad_request", message: firstIssue(parsed.error) }, { status: 400 });
-  const { agent, messages, intent } = parsed.data;
+  const { agent, messages, intent, route } = parsed.data;
   if (messages[messages.length - 1].role !== "user") return Response.json({ error: "bad_request", message: "The last message must be from the visitor." }, { status: 400 });
   try {
-    const reply = await answer(agent, messages, getAi(), { intent, signal: req.signal });
+    const reply = await answer(agent, messages, getAi(), { intent, route, signal: req.signal });
     return Response.json(reply, { headers: { "cache-control": "no-store" } });
   } catch {
     return Response.json({ error: "aborted" }, { status: 499 });

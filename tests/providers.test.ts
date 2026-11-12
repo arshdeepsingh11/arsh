@@ -2,14 +2,14 @@ import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
 import { getAi, type ToolDef } from "@/lib/ai";
 import { anthropicProvider } from "@/lib/ai/anthropic";
-import { geminiProvider } from "@/lib/ai/gemini";
+import { geminiProvider, isCooling, resetCooling } from "@/lib/ai/gemini";
 import { openaiProvider } from "@/lib/ai/openai";
 
 /* Wire-format tests: each provider is driven by a scripted fetch that checks the request and returns vendor-shaped JSON. */
 
 type Call = { url: string; init: RequestInit; body: Record<string, unknown> };
 const realFetch = globalThis.fetch;
-afterEach(() => { globalThis.fetch = realFetch; });
+afterEach(() => { globalThis.fetch = realFetch; resetCooling(); });
 
 function script(responses: unknown[]): Call[] {
   const calls: Call[] = [];
@@ -121,5 +121,41 @@ test("Gemini: a bad key stops immediately instead of trying other models", async
   let n = 0;
   globalThis.fetch = (async () => { n++; return new Response("API key not valid", { status: 400 }); }) as typeof fetch;
   await assert.rejects(geminiProvider("bad", "gemini-3.8-flash", "gemini-3.8-flash", ["gemini-2.5-flash"]).chat({ system: "s", messages: [{ role: "user", content: "x" }] }));
+  assert.equal(n, 1);
+});
+
+const ok = (text: string) => new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text }] } }] }), { status: 200 });
+
+test("Gemini: a busy model is skipped on the next request, and the built-in backup chain is used", async () => {
+  const seen: string[] = [];
+  globalThis.fetch = (async (url: string | URL) => {
+    const m = /models\/([^:]+):/.exec(String(url))![1];
+    seen.push(m);
+    if (m === "gemini-3.8-flash") return new Response('{"error":{"details":[{"retryDelay":"30s"}]}}', { status: 429 });
+    return ok("hi");
+  }) as typeof fetch;
+  const p = geminiProvider("k", "gemini-3.8-flash", "gemini-3.5-flash-lite");
+  const r1 = await p.chat({ system: "s", messages: [{ role: "user", content: "x" }] });
+  assert.equal(r1.model, "gemini-3.6-flash");
+  assert.ok(isCooling("gemini-3.8-flash"));
+  seen.length = 0;
+  const r2 = await p.chat({ system: "s", messages: [{ role: "user", content: "x" }] });
+  assert.equal(r2.model, "gemini-3.6-flash");
+  assert.deepEqual(seen, ["gemini-3.6-flash"], "the cooling model is not tried first");
+  assert.ok((p.models ?? []).length >= 6);
+});
+
+test("Gemini: an empty answer moves on to the next model", async () => {
+  globalThis.fetch = (async (url: string | URL) => String(url).includes("gemini-3.8-flash")
+    ? new Response(JSON.stringify({ candidates: [{ content: { parts: [] }, finishReason: "MAX_TOKENS" }] }), { status: 200 })
+    : ok("answer")) as typeof fetch;
+  const r = await geminiProvider("k", "gemini-3.8-flash", "gemini-3.8-flash").chat({ system: "s", messages: [{ role: "user", content: "x" }] });
+  assert.equal(r.text, "answer");
+});
+
+test("Gemini: a rejected key stops at once, even on a 400 or 403", async () => {
+  let n = 0;
+  globalThis.fetch = (async () => { n++; return new Response('{"error":{"status":"INVALID_ARGUMENT","details":[{"reason":"API_KEY_INVALID"}]}}', { status: 400 }); }) as typeof fetch;
+  await assert.rejects(geminiProvider("bad", "gemini-3.8-flash", "gemini-3.8-flash").chat({ system: "s", messages: [{ role: "user", content: "x" }] }), /key was rejected/);
   assert.equal(n, 1);
 });

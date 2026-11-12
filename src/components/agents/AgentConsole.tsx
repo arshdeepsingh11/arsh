@@ -5,20 +5,28 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { AGENT_IDS, AGENTS, CHARACTER_STATES, type AgentId, type CharacterState } from "@/lib/content/agents";
 import type { AgentReply } from "@/lib/agents/conversation";
+import { HANDOFF_LINE, routeAgent } from "@/lib/agents/router";
 import { canSpeak, dictate, dictationSupported, speak, stopSpeaking } from "@/lib/voice";
 import { useApp, type Turn } from "@/components/shell/AppProvider";
 import { Avatar, vars } from "./Avatar";
 import { CharacterCanvas } from "./CharacterCanvas";
 
-type Props = { id: AgentId; layout: "drawer" | "page"; onSwitch?: (id: AgentId) => void };
+type Props = { id: AgentId; layout: "drawer" | "page" };
 
-/** The intelligence interface for one agent: animated character, state preview, grounded chat, voice. */
-export function AgentConsole({ id, layout, onSwitch }: Props) {
-  const a = AGENTS[id];
+const wait = (ms: number) => new Promise((z) => setTimeout(z, ms));
+
+/**
+ * The intelligence interface: one shared conversation with the whole team. The agent whose area a question is in
+ * steps in to answer it (ATLAS for career, NEX for code, ...), and the previous one steps out.
+ */
+export function AgentConsole({ id, layout }: Props) {
   const app = useApp();
   const router = useRouter();
-  const turns = app.histories[id] ?? [];
+  const [active, setActive] = useState<AgentId>(id);
+  const a = AGENTS[active];
+  const turns = app.thread;
   const [state, setState] = useState<CharacterState>("greeting");
+  const [swapping, setSwapping] = useState(false);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [waiting, setWaiting] = useState(false);
@@ -31,12 +39,15 @@ export function AgentConsole({ id, layout, onSwitch }: Props) {
   const client = useIsClient();
   const turnsRef = useRef(turns);
   turnsRef.current = turns;
+  const activeRef = useRef(active);
+  activeRef.current = active;
 
   useEffect(() => {
+    setActive(id);
     setState("greeting");
     const t = setTimeout(() => setState((s) => (s === "greeting" ? "idle" : s)), 1600);
     const q = app.takePending(id);
-    if (q) void send(q);
+    if (q) void send(q, id);
     else inputRef.current?.focus({ preventScroll: true });
     return () => { clearTimeout(t); abort.current?.abort(); stopMic.current?.(); stopSpeaking(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -44,34 +55,61 @@ export function AgentConsole({ id, layout, onSwitch }: Props) {
 
   useEffect(() => { log.current?.scrollTo({ top: log.current.scrollHeight, behavior: app.reduced ? "auto" : "smooth" }); }, [turns.length, waiting, app.reduced]);
 
-  async function send(text: string) {
+  /** The current agent steps out and the next one steps in, with a short line in the chat. */
+  async function handOver(to: AgentId, thread: Turn[]): Promise<Turn[]> {
+    const from = activeRef.current;
+    if (to === from) return thread;
+    const withNote: Turn[] = [...thread, { role: "note", content: HANDOFF_LINE[to], agent: to }];
+    app.setThread(withNote);
+    setSwapping(true);
+    setState("idle");
+    await wait(app.reduced ? 0 : 280);
+    setActive(to);
+    setState("greeting");
+    setSwapping(false);
+    await wait(app.reduced ? 0 : 520);
+    return withNote;
+  }
+
+  async function send(text: string, start?: AgentId) {
     const q = text.trim();
     if (!q || busy) return;
+    const current = start ?? activeRef.current;
     setInput("");
     setBusy(true);
+    let next: Turn[] = [...turnsRef.current, { role: "user", content: q }];
+    app.setThread(next);
+    // Same routing rules as the server, so the right character is already on stage while the answer is prepared.
+    const predicted = routeAgent(q, current);
+    next = await handOver(predicted, next);
     setWaiting(true);
     setState("thinking");
-    const next: Turn[] = [...turnsRef.current, { role: "user", content: q }];
-    app.setHistory(id, next);
     abort.current = new AbortController();
     try {
       const res = await fetch("/api/agents/chat", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ agent: id, messages: next.slice(-20).map(({ role, content }) => ({ role, content })), intent: app.intent ?? undefined }),
+        body: JSON.stringify({
+          agent: current,
+          route: true,
+          // Hand-off notes are for the visitor only; the model sees the questions and answers.
+          messages: next.filter((t) => t.role !== "note").slice(-20).map(({ role, content }) => ({ role, content })),
+          intent: app.intent ?? undefined,
+        }),
         signal: abort.current.signal,
       });
       if (res.status === 429) throw new Error("rate");
       if (!res.ok) throw new Error("http");
       const r = (await res.json()) as AgentReply;
+      if (r.agent !== activeRef.current) next = await handOver(r.agent, next);
       setWaiting(false);
-      const { text: content, agent: _agent, ...meta } = r;
-      app.setHistory(id, [...next, { role: "assistant", content, meta }]);
+      const { text: content, agent: who, ...meta } = r;
+      app.setThread([...next, { role: "assistant", content, agent: who, meta }]);
       app.blip(720, 0.06);
-      if (r.mode === "fallback") { setState("error"); await new Promise((z) => setTimeout(z, 900)); }
+      if (r.mode === "fallback") { setState("error"); await wait(900); }
       setState("speaking");
-      if (app.voice && canSpeak()) await speak(id, content);
-      else await new Promise((z) => setTimeout(z, Math.min(4000, 400 + content.length * 18)));
+      if (app.voice && canSpeak()) await speak(who, content);
+      else await wait(Math.min(4000, 400 + content.length * 18));
       setState(r.actions.length ? "excited" : "idle");
       const nav = r.actions.find((x) => x.type === "navigate");
       if (nav) setTimeout(() => { app.closeAgent(); router.push(nav.href); }, 1200);
@@ -80,7 +118,7 @@ export function AgentConsole({ id, layout, onSwitch }: Props) {
       setWaiting(false);
       if ((e as Error).name === "AbortError") return;
       const msg = (e as Error).message === "rate" ? "Too many questions in a short time. Please wait a minute and try again." : "Something went wrong while answering. Please try again.";
-      app.setHistory(id, [...next, { role: "assistant", content: msg }]);
+      app.setThread([...next, { role: "assistant", content: msg, agent: activeRef.current }]);
       setState("error");
       setTimeout(() => setState("idle"), 1800);
     } finally {
@@ -103,9 +141,16 @@ export function AgentConsole({ id, layout, onSwitch }: Props) {
     );
   }
 
+  function pick(x: AgentId) {
+    if (busy || x === active) return;
+    setActive(x);
+    setState("greeting");
+    setTimeout(() => setState((s) => (s === "greeting" ? "idle" : s)), 1400);
+  }
+
   const onSubmit = (e: FormEvent) => { e.preventDefault(); void send(input); };
   const modeNote =
-    app.status.mode === "live" ? <><b>Live model.</b> {app.status.provider} answers, grounded in the verified knowledge base and checked before you see it.</>
+    app.status.mode === "live" ? <><b>Live AI.</b> The agent whose area your question is in answers it, grounded in the verified record and checked before you see it.</>
     : app.status.mode === "demo" ? <><b>Demo mode.</b> No language model is configured, so agents answer by retrieval from the verified knowledge base. Nothing is generated.</>
     : <>Checking the agent service…</>;
 
@@ -113,7 +158,9 @@ export function AgentConsole({ id, layout, onSwitch }: Props) {
     <div className={layout === "drawer" ? "agent-box" : "agent-page"} style={vars({ c: a.color, s: a.soft })} role={layout === "drawer" ? "dialog" : undefined} aria-modal={layout === "drawer" ? true : undefined} aria-label={`${a.name}, ${a.role}`}>
       {layout === "drawer" && <button className="close" onClick={app.closeAgent} aria-label="Close">×</button>}
       <div className="agent-stage">
-        <CharacterCanvas ids={[id]} states={{ [id]: state }} className="solo-wrap" fallback={<div className="solo-wrap"><Avatar id={id} size="big" /></div>} />
+        <div key={active} className={`swap ${swapping ? "out" : "in"}`}>
+          <CharacterCanvas ids={[active]} states={{ [active]: state }} className="solo-wrap" fallback={<div className="solo-wrap"><Avatar id={active} size="big" /></div>} />
+        </div>
         <div className="agent-id">
           <h2>{a.name}</h2>
           <p>{a.role}</p>
@@ -122,12 +169,12 @@ export function AgentConsole({ id, layout, onSwitch }: Props) {
         <div className="states" role="group" aria-label="Preview character states">
           {CHARACTER_STATES.map((s) => <button key={s} onClick={() => setState(s)}>{s}</button>)}
         </div>
-        <div className="switch" role="group" aria-label="Switch agent">
+        <div className="switch" role="group" aria-label="Talk to a specific agent">
           {AGENT_IDS.map((x) =>
             layout === "page" ? (
-              <Link key={x} href={`/agents/${x}`} className={x === id ? "on" : ""} aria-label={AGENTS[x].name} title={`${AGENTS[x].name} · ${AGENTS[x].role}`}><Avatar id={x} /></Link>
+              <Link key={x} href={`/agents/${x}`} className={x === active ? "on" : ""} aria-label={AGENTS[x].name} title={`${AGENTS[x].name} · ${AGENTS[x].role}`}><Avatar id={x} /></Link>
             ) : (
-              <button key={x} onClick={() => onSwitch?.(x)} className={x === id ? "on" : ""} aria-label={AGENTS[x].name} title={`${AGENTS[x].name} · ${AGENTS[x].role}`}><Avatar id={x} /></button>
+              <button key={x} onClick={() => pick(x)} className={x === active ? "on" : ""} aria-label={AGENTS[x].name} title={`${AGENTS[x].name} · ${AGENTS[x].role}`}><Avatar id={x} /></button>
             ),
           )}
         </div>
@@ -140,16 +187,19 @@ export function AgentConsole({ id, layout, onSwitch }: Props) {
           {client && canSpeak() && (
             <button className="pill" aria-pressed={app.voice} onClick={() => { if (app.voice) stopSpeaking(); app.setVoice(!app.voice); }}>{app.voice ? "Voice on" : "Voice off"}</button>
           )}
-          <button className="pill" onClick={() => { abort.current?.abort(); app.clearHistory(id); setState("idle"); }}>Clear conversation</button>
+          <button className="pill" onClick={() => { abort.current?.abort(); app.clearThread(); setState("idle"); }}>Clear conversation</button>
         </div>
         <div className="log" ref={log} aria-live="polite">
-          <Bubble who="bot" id={id} text={a.greet} />
-          {turns.map((t, i) => <Bubble key={i} who={t.role === "user" ? "me" : "bot"} id={id} text={t.content} meta={t.meta} />)}
-          {waiting && <Bubble who="bot" id={id} text="…" />}
+          <Bubble who="bot" id={id} text={AGENTS[id].greet} />
+          {turns.map((t, i) =>
+            t.role === "note" ? <Handoff key={i} id={t.agent ?? active} text={t.content} />
+            : <Bubble key={i} who={t.role === "user" ? "me" : "bot"} id={t.agent ?? active} text={t.content} meta={t.meta} />,
+          )}
+          {waiting && <Bubble who="bot" id={active} text="…" />}
         </div>
         <div className="suggest">{a.ask.map((s) => <button key={s} className="chip" onClick={() => void send(s)} disabled={busy}>{s}</button>)}</div>
         <form className="say" onSubmit={onSubmit}>
-          <input ref={inputRef} value={input} onChange={(e) => { setInput(e.target.value); if (!busy) setState(e.target.value ? "listening" : "idle"); }} autoComplete="off" maxLength={2000} placeholder={`Ask ${a.name} about ${a.scope}`} aria-label={`Message ${a.name}`} />
+          <input ref={inputRef} value={input} onChange={(e) => { setInput(e.target.value); if (!busy) setState(e.target.value ? "listening" : "idle"); }} autoComplete="off" maxLength={2000} placeholder="Ask anything. The right agent answers." aria-label={`Message ${a.name}`} />
           {client && dictationSupported() && (
             <button type="button" className={`mic ${listening ? "on" : ""}`} onClick={toggleMic} aria-pressed={listening} aria-label={listening ? "Stop dictation" : "Dictate"} title="Dictate. Your browser asks for microphone permission the first time.">●</button>
           )}
@@ -162,16 +212,28 @@ export function AgentConsole({ id, layout, onSwitch }: Props) {
   );
 }
 
-function Bubble({ who, id, text, meta }: { who: "me" | "bot"; id: AgentId; text: string; meta?: Turn["meta"] }) {
+function Handoff({ id, text }: { id: AgentId; text: string }) {
+  const a = AGENTS[id];
   return (
-    <div className={`msg ${who}`}>
+    <div className="handoff" style={vars({ c: a.color, s: a.soft })} role="status">
+      <Avatar id={id} />
+      <span>{text}</span>
+    </div>
+  );
+}
+
+function Bubble({ who, id, text, meta }: { who: "me" | "bot"; id: AgentId; text: string; meta?: Turn["meta"] }) {
+  const a = AGENTS[id];
+  return (
+    <div className={`msg ${who}`} style={who === "bot" ? vars({ c: a.color, s: a.soft }) : undefined}>
       {who === "bot" && <Avatar id={id} />}
       <div>
+        {who === "bot" && <b className="who">{a.name}</b>}
         <p>{text}</p>
         {meta && (
           <div className="meta">
             <span className={`tag ${meta.mode === "live" ? "live" : "demo"}`}>
-              {meta.mode === "live" ? `live model${meta.model ? ` · ${meta.model}` : ""}` : meta.mode === "fallback" ? "model unavailable · retrieval answer" : meta.mode === "guarded" ? "outside my scope · answered by the guard" : "demo · retrieval answer"}
+              {meta.mode === "live" ? "live AI" : meta.mode === "fallback" ? "AI busy · answered from the record" : meta.mode === "guarded" ? "outside my scope · answered by the guard" : "demo · retrieval answer"}
             </span>
             <span className={`tag ${meta.check.ok ? "ok" : "warn"}`}>{meta.check.ok ? "✓ figures match sources" : `⚠ not found in sources: ${meta.check.issues.join(", ")}`}</span>
             {meta.tools.length > 0 && <span className="tag">tools: {[...new Set(meta.tools)].join(", ")}</span>}

@@ -275,3 +275,14 @@ ul.facts,.tl-b ul,.hints,details ul,.route ol,ol.ol{list-style:revert}
 @media (max-width:1100px){.card-grid{grid-template-columns:repeat(3,1fr)}.stack-grid{grid-template-columns:repeat(4,1fr)}.bridge{grid-template-columns:repeat(3,1fr)}.cap-cards{grid-template-columns:repeat(2,1fr)}}
 @media (max-width:1000px){.cap-wrap,.ai-top,.ai-teaser,.concept,.quick{grid-template-columns:1fr}.cap-detail{position:static}.ai-layout{grid-template-columns:1fr}.ai-toc{position:static;flex-direction:row;overflow-x:auto}.ai-toc a{white-space:nowrap}.spot,.feat-grid,.agent-cards,.explain-grid,.lab-guide,.ai-map{grid-template-columns:repeat(2,1fr)}.journey,.focus-grid{grid-template-columns:repeat(2,1fr)}.signals.s8{grid-template-columns:repeat(2,1fr)}}
 @media (max-width:760px){.card-grid,.spot,.feat-grid,.agent-cards,.explain-grid,.lab-guide,.ai-map,.journey,.cap-cards,.bridge,.focus-grid{grid-template-columns:1fr}.stack-grid{grid-template-columns:repeat(2,1fr)}.mini-stats,.mini-stats.wide{grid-template-columns:repeat(2,1fr)}.win-tools button{display:none}.win-tools button:last-of-type{display:inline-block}.doc-scan{grid-template-columns:1fr}.bar-row{grid-template-columns:90px 1fr 42px}.search{max-width:none;width:100%}}
+
+/* Agent hand-offs: one agent steps out, the next steps in */
+.swap{flex:1;width:100%;min-height:150px;display:flex;flex-direction:column}
+.swap.in{animation:swapIn .5s var(--ease)}
+.swap.out{opacity:0;transform:translateY(14px) scale(.94);transition:opacity .28s,transform .28s}
+@keyframes swapIn{from{opacity:0;transform:translateY(-16px) scale(.92);filter:blur(4px)}}
+.handoff{align-self:center;display:flex;align-items:center;gap:8px;max-width:92%;padding:5px 14px 5px 5px;border-radius:999px;background:var(--s);border:1px solid color-mix(in srgb,var(--c) 45%,transparent);font-size:.8rem;animation:enter .45s var(--ease)}
+.handoff .av{--z:24px}
+.msg .who{display:block;font:500 .66rem var(--m);letter-spacing:.16em;color:var(--c);margin:0 0 3px 8px}
+.reduced .swap,.reduced .handoff{animation:none!important;transition:none!important}
+@media (max-width:760px){.agent-box .swap{flex:1 1 40%;min-height:120px}}

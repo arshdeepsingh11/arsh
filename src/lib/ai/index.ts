@@ -8,7 +8,7 @@ export type AiMode = { mode: "live"; provider: ChatProvider } | { mode: "demo"; 
 const DEFAULTS = {
   anthropic: { model: "claude-sonnet-5-5", fast: "claude-haiku-5-5" },
   openai: { model: "gpt-4.1", fast: "gpt-4.1-mini" },
-  gemini: { model: "gemini-3.8-flash", fast: "gemini-3.8-flash" },
+  gemini: { model: "gemini-3.8-flash", fast: "gemini-3.5-flash-lite" },
 } as const;
 
 /**
@@ -24,7 +24,7 @@ export function getAi(env: Record<string, string | undefined> = process.env): Ai
   const d = DEFAULTS[id as keyof typeof DEFAULTS];
   const model = env.AI_MODEL || d.model;
   const fast = env.AI_MODEL_FAST || env.AI_MODEL || d.fast;
-  const provider = id === "anthropic" ? anthropicProvider(key, model, fast) : id === "openai" ? openaiProvider(key, model, fast) : geminiProvider(key, model, fast, (env.AI_FALLBACK_MODELS ?? "gemini-3.6-flash,gemini-2.5-flash").split(",").map((m) => m.trim()).filter(Boolean));
+  const provider = id === "anthropic" ? anthropicProvider(key, model, fast) : id === "openai" ? openaiProvider(key, model, fast) : geminiProvider(key, model, fast, (env.AI_FALLBACK_MODELS ?? "").split(",").map((m) => m.trim()).filter(Boolean));
   return { mode: "live", provider };
 }
 

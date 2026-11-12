@@ -24,7 +24,7 @@ const JOBS: Record<StageId, string> = {
 export async function runNetwork(task: string, include: AgentId[], ai: AiMode, emit: (e: NetworkEvent) => void, signal?: AbortSignal): Promise<void> {
   const stages = PLAN.filter((s) => !s.optional || include.includes(s.agent));
   const live = ai.mode === "live";
-  emit({ type: "plan", mode: live ? "live" : "demo", stages, provider: live ? `${ai.provider.label} · ${ai.provider.model}` : undefined });
+  emit({ type: "plan", mode: live ? "live" : "demo", stages });
 
   const ranked = scoreProjects(task);
   const top = ranked.slice(0, 3);
@@ -67,7 +67,8 @@ export async function runNetwork(task: string, include: AgentId[], ai: AiMode, e
       } catch (e) {
         if (signal?.aborted) throw e;
         // Stop rather than invent the missing step.
-        emit({ type: "step-error", index: i, message: e instanceof Error ? e.message.slice(0, 160) : "provider error" });
+        console.error(`[network] stage ${i} failed:`, e instanceof Error ? e.message : e);
+        emit({ type: "step-error", index: i, message: "The AI service was busy or unavailable for this step." });
         return;
       }
     } else {
