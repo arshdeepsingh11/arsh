@@ -1,27 +1,35 @@
 {
-  "name": "arshdeep-portfolio",
-  "version": "1.0.0",
+  "name": "arsh-os",
+  "version": "2.0.0",
   "private": true,
+  "description": "ARSH/OS — the AI-native portfolio of Arshdeep Singh: six agents, project worlds, a working intelligence lab.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test tests/*.test.ts",
+    "certificates": "node scripts/prepare-certificates.mjs"
   },
   "dependencies": {
-    "next": "^14.2.5",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "next": "^16.4.3",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "three": "^0.187.0",
+    "zod": "^4.1.0"
   },
   "devDependencies": {
-    "@types/node": "^20.14.10",
-    "@types/react": "^18.3.3",
-    "@types/react-dom": "^18.3.0",
-    "autoprefixer": "^10.4.19",
-    "eslint": "^8.57.0",
-    "eslint-config-next": "^14.2.5",
-    "postcss": "^8.4.39",
-    "tailwindcss": "^3.4.6",
-    "typescript": "^5.5.3"
+    "@tailwindcss/postcss": "^4.1.0",
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@types/three": "^0.187.0",
+    "sharp": "^0.34.0",
+    "tailwindcss": "^4.1.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.8.0"
+  },
+  "engines": {
+    "node": ">=20.9"
   }
 }
