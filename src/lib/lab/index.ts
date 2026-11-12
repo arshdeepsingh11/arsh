@@ -1,0 +1,16 @@
+import { mountArchitecture } from "./architecture";
+import { mountAutomation } from "./automation";
+import { mountEvaluation } from "./evaluation";
+import { mountFinance } from "./finance";
+import { mountNeural } from "./neural";
+
+export type LabModule = { id: string; n: string; name: string; d: string; href?: string; mount?: (el: HTMLElement) => () => void; see?: string; try?: string[]; why?: string };
+
+export const LAB_MODULES: LabModule[] = [
+  { id: "network", n: "01", name: "Multi-Agent Collaboration", d: "Six agents, separate calls, one verified answer.", href: "/network" },
+  { id: "neural", n: "02", name: "Neural Intelligence", d: "Train a small neural network live and look inside each neuron.", mount: mountNeural, see: "A real two-layer neural network learning to separate blue points from coral ones. The background colour is its current guess for every spot on the map.", try: ["Switch the dataset to XOR and watch it struggle, then add hidden neurons.", "Raise the learning rate a lot: training gets jumpy.", "Click one hidden neuron to see the single pattern it detects."], why: "Every large model is built from this same idea, repeated billions of times: weighted connections nudged a little after every mistake." },
+  { id: "architecture", n: "03", name: "AI Architecture Simulator", d: "Assemble a system, connect the parts and watch a request travel.", mount: mountArchitecture, see: "A blueprint of an AI product. Each box is a part of a real system; lines are the paths data can travel.", try: ["Delete the Evaluation box and read the warning.", "Connect Frontend straight to LLM: see why that leaks an API key.", "Press Send a request and watch which parts it reaches."], why: "Most AI failures are architecture failures: a missing check, a missing tool, or a key in the wrong place." },
+  { id: "evaluation", n: "04", name: "AI Evaluation Arena", d: "Four answers to one question, scored by a transparent checker.", mount: mountEvaluation, see: "Four answers to the same question, graded by the same checker this site runs on every agent reply.", try: ["Write a wrong number into your own answer and evaluate it.", "Remove the [source] tag from a good answer: it drops a level."], why: "You cannot improve what you do not measure. Automatic checks catch confident mistakes before people see them." },
+  { id: "finance", n: "05", name: "Financial Intelligence", d: "Inputs, assumptions and risk in a Monte Carlo simulation.", mount: mountFinance, see: "Four hundred possible futures for one savings plan, drawn as a band of outcomes instead of a single line.", try: ["Push volatility to 30% and watch the band widen.", "Shorten the horizon to 3 years.", "Set an optimistic return and read the warning."], why: "Good decision tools show uncertainty and assumptions openly. A single confident number hides the risk." },
+  { id: "automation", n: "06", name: "Automation Studio", d: "Build Trigger → Agent → Validation → Action and run it.", mount: mountAutomation, see: "A workflow engine: each step runs real rules on the text, and a failed check stops the run.", try: ["Run Sample 3: the confidence check stops it.", "Add an Extract contact details step before an Email check."], why: "The safe way to automate with AI: let the model classify or extract, then validate with plain rules before any action." },
+];
